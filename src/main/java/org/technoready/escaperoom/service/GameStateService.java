@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-class GameStateService {
+public class GameStateService {
     private final Map<String, Integer> playerProgress = new ConcurrentHashMap<>();
     private final Map<String, Boolean> doorUnlocked = new ConcurrentHashMap<>();
 
