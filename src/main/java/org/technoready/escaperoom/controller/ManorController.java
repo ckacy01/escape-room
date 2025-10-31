@@ -1,5 +1,13 @@
 package org.technoready.escaperoom.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +18,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Haunted Manor Escape API", description = "REST API simulation for escaping a haunted manor through HTTP puzzles.")
 public class ManorController {
 
     private final GameStateService gameState;
@@ -18,8 +27,35 @@ public class ManorController {
         this.gameState = gameState;
     }
 
+    // -------------------- ROOM --------------------
+
+    @Operation(
+            summary = "Enter the haunted parlor",
+            description = "Begins the game. Returns the first description and clue to start the escape adventure.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Successfully entered the parlor",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ManorResponse.class),
+                                    examples = @ExampleObject(value = """
+                                        {
+                                          "message": "You open your eyes to a dimly lit parlor...",
+                                          "status": "parlor_entered",
+                                          "hint": "\\"Only those who listen to the house will find the way out.\\"",
+                                          "progress": 0
+                                        }
+                                        """)
+                            )
+                    )
+            }
+    )
     @GetMapping("/room")
-    public ResponseEntity<ManorResponse> enterRoom(@RequestParam(defaultValue = "player1") String playerId) {
+    public ResponseEntity<ManorResponse> enterRoom(
+            @Parameter(description = "Unique player identifier", example = "player1")
+            @RequestParam(defaultValue = "player1") String playerId) {
+
         gameState.startGame(playerId);
 
         ManorResponse response = new ManorResponse(
@@ -34,8 +70,38 @@ public class ManorController {
         return ResponseEntity.ok(response);
     }
 
+    // -------------------- DOOR --------------------
+
+    @Operation(
+            summary = "Attempt to unlock the parlor door",
+            description = "Sends a secret key to unlock the next room. Requires JSON body: `{ \"key\": \"knock\" }`.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Door successfully unlocked",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ManorResponse.class),
+                                    examples = @ExampleObject(value = """
+                                        {
+                                          "message": "You knock three times...",
+                                          "status": "door_unlocked",
+                                          "hint": "Continue your journey with GET /hallway",
+                                          "progress": 1
+                                        }
+                                        """)
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid key or door already unlocked",
+                            content = @Content(mediaType = "application/json")
+                    )
+            }
+    )
     @PostMapping("/door")
     public ResponseEntity<ManorResponse> unlockDoor(
+            @Parameter(description = "Unique player identifier", example = "player1")
             @RequestParam(defaultValue = "player1") String playerId,
             @RequestBody Map<String, String> body) {
 
@@ -77,8 +143,21 @@ public class ManorController {
         return ResponseEntity.ok(response);
     }
 
+    // -------------------- HALLWAY --------------------
+
+    @Operation(
+            summary = "Enter the haunted hallway",
+            description = "Access the hallway once the parlor door has been unlocked. Returns new clues to progress.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Successfully entered hallway"),
+                    @ApiResponse(responseCode = "400", description = "Door not unlocked or already explored")
+            }
+    )
     @GetMapping("/hallway")
-    public ResponseEntity<ManorResponse> enterHallway(@RequestParam(defaultValue = "player1") String playerId) {
+    public ResponseEntity<ManorResponse> enterHallway(
+            @Parameter(description = "Unique player identifier", example = "player1")
+            @RequestParam(defaultValue = "player1") String playerId) {
+
         if (!gameState.isDoorUnlocked(playerId)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ManorResponse(
@@ -116,8 +195,19 @@ public class ManorController {
         return ResponseEntity.ok(response);
     }
 
+    // -------------------- ESCAPE --------------------
+
+    @Operation(
+            summary = "Attempt to escape the manor",
+            description = "Tries to break the curse and escape the manor. Requires JSON body: `{ \"key\": \"truth\" }`.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Escape successful – curse broken"),
+                    @ApiResponse(responseCode = "400", description = "Failed escape or incomplete progress")
+            }
+    )
     @PostMapping("/escape")
     public ResponseEntity<ManorResponse> attemptEscape(
+            @Parameter(description = "Unique player identifier", example = "player1")
             @RequestParam(defaultValue = "player1") String playerId,
             @RequestBody Map<String, String> body) {
 
@@ -165,8 +255,20 @@ public class ManorController {
         return ResponseEntity.ok(response);
     }
 
+    // -------------------- STATUS --------------------
+
+    @Operation(
+            summary = "Check current game status",
+            description = "Returns the player's current location and progress within the haunted manor.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Status successfully retrieved")
+            }
+    )
     @GetMapping("/status")
-    public ResponseEntity<ManorResponse> getStatus(@RequestParam(defaultValue = "player1") String playerId) {
+    public ResponseEntity<ManorResponse> getStatus(
+            @Parameter(description = "Unique player identifier", example = "player1")
+            @RequestParam(defaultValue = "player1") String playerId) {
+
         int stage = gameState.getProgress(playerId);
 
         String narrative = switch (stage) {
