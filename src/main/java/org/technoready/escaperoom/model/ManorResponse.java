@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 @Builder
-class ManorResponse {
+public class ManorResponse {
     private String narrative;
     private String status;
     private String inscription;
